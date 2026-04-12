@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Modern sötét glassmorphism startpage – testreszabható widgetekkel, plugin rendszerrel és témákkal">
+  <title>Startpage</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Background Layer -->
+  <div id="bg-layer" class="bg-layer"></div>
+  <div class="bg-overlay" id="bg-overlay"></div>
+
+  <!-- System Status Bar (top right) -->
+  <div class="system-bar" id="system-bar">
+    <div class="sys-pill" id="sys-net" title="Hálózat">
+      <span class="net-dot" id="net-dot"></span>
+      <span class="sys-label" id="net-label">—</span>
+    </div>
+    <div class="sys-pill" id="sys-cpu" title="CPU">
+      <i class="fa-solid fa-microchip"></i>
+      <span class="sys-value" id="cpu-value">—%</span>
+      <div class="sys-bar-track"><div class="sys-bar-fill" id="cpu-bar"></div></div>
+    </div>
+    <div class="sys-pill" id="sys-ram" title="RAM">
+      <i class="fa-solid fa-memory"></i>
+      <span class="sys-value" id="ram-value">—%</span>
+      <div class="sys-bar-track"><div class="sys-bar-fill" id="ram-bar"></div></div>
+    </div>
+    <div class="sys-pill" id="sys-disk" title="Lemez">
+      <i class="fa-solid fa-hard-drive"></i>
+      <span class="sys-value" id="disk-value">—%</span>
+    </div>
+    <div class="sys-pill" id="sys-uptime" title="Uptime">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span class="sys-value" id="uptime-value">—</span>
+    </div>
+    <div class="sys-pill sys-pill-updates" id="sys-updates" title="Arch frissítések">
+      <i class="fa-brands fa-linux"></i>
+      <span class="updates-count" id="updates-count">—</span>
+    </div>
+  </div>
+
+  <!-- AirDrop Notification Pill -->
+  <div class="airdrop-pill" id="airdrop-pill">
+    <i class="fa-solid fa-paper-plane"></i>
+    <span class="airdrop-text" id="airdrop-text"></span>
+    <button class="airdrop-copy" id="airdrop-copy" title="Másolás"><i class="fa-solid fa-copy"></i></button>
+    <button class="airdrop-dismiss" id="airdrop-dismiss" title="Elvetés"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- Customize Mode Toggle -->
+  <button class="customize-toggle" id="customize-toggle" title="Testreszabás mód">
+    <i class="fa-solid fa-grip" id="customize-icon"></i>
+  </button>
+
+  <!-- Pomodoro Timer -->
+  <div class="widget-wrapper" data-widget-id="pomodoro" data-widget-size="mini">
+    <div class="widget-controls" id="controls-pomodoro">
+      <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-expand"></i></button>
+      <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+      <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+    </div>
+    <div class="pomodoro-widget" id="pomodoro-widget">
+      <div class="pomodoro-ring" id="pomodoro-ring">
+        <svg viewBox="0 0 36 36" class="pomodoro-svg">
+          <circle class="pomodoro-track" cx="18" cy="18" r="15.91549" fill="none" stroke-width="2.5"/>
+          <circle class="pomodoro-progress" id="pomodoro-progress" cx="18" cy="18" r="15.91549" fill="none" stroke-width="2.5" stroke-dasharray="100 100" stroke-dashoffset="0"/>
+        </svg>
+        <span class="pomodoro-time" id="pomodoro-time">25:00</span>
+      </div>
+      <button class="pomodoro-btn" id="pomodoro-btn" title="Start/Stop">
+        <i class="fa-solid fa-play" id="pomodoro-icon"></i>
+      </button>
+      <span class="pomodoro-label" id="pomodoro-label">Pomodoro</span>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-container" id="main-container">
+
+    <!-- Clock & Date Widget -->
+    <div class="widget-wrapper widget-wrapper-inline" data-widget-id="clock" data-widget-size="large">
+      <div class="widget-controls" id="controls-clock">
+        <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-compress"></i></button>
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="clock-section" id="clock-section">
+        <div class="greeting" id="greeting"></div>
+        <div class="clock" id="clock">00:00</div>
+        <div class="date" id="date"></div>
+      </section>
+    </div>
+
+    <!-- Agenda Widget -->
+    <div class="widget-wrapper widget-wrapper-inline" data-widget-id="agenda" data-widget-size="large">
+      <div class="widget-controls" id="controls-agenda">
+        <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-compress"></i></button>
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="agenda-section" id="agenda-section">
+        <div class="agenda-widget glass-card" id="agenda-widget">
+          <div class="agenda-header">
+            <h3><i class="fa-solid fa-calendar-day"></i> Mai napirend</h3>
+            <button class="btn btn-accent btn-sm" id="agenda-add-btn" title="Új esemény">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+          <div class="agenda-list" id="agenda-list">
+            <div class="agenda-empty">Nincs esemény mára.</div>
+          </div>
+          <!-- Inline add form (hidden by default) -->
+          <div class="agenda-form" id="agenda-form" style="display:none">
+            <input type="text" id="agenda-title" placeholder="Esemény neve..." class="agenda-input">
+            <input type="date" id="agenda-date" class="agenda-input">
+            <input type="time" id="agenda-time" class="agenda-input">
+            <div class="agenda-form-actions">
+              <button class="btn btn-ghost btn-sm" id="agenda-cancel">Mégse</button>
+              <button class="btn btn-primary btn-sm" id="agenda-save"><i class="fa-solid fa-check"></i> Hozzáadás</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Search Bar Widget -->
+    <div class="widget-wrapper widget-wrapper-inline" data-widget-id="search" data-widget-size="large">
+      <div class="widget-controls" id="controls-search">
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="search-section" id="search-section">
+        <div class="search-wrapper glass-card" id="search-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon" id="search-icon"></i>
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="Keresés... ( !bang | > parancs | 2+2 | 50 EUR )"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <div class="search-engine-badge" id="search-engine-badge">DDG</div>
+          <!-- Bang suggestions dropdown -->
+          <div class="bang-dropdown" id="bang-dropdown"></div>
+          <!-- Smart results panel -->
+          <div class="smart-result" id="smart-result"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Quick Links Grid Widget -->
+    <div class="widget-wrapper widget-wrapper-inline" data-widget-id="links" data-widget-size="large">
+      <div class="widget-controls" id="controls-links">
+        <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-compress"></i></button>
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="links-section" id="links-section"></section>
+    </div>
+
+    <!-- Todo Widget -->
+    <div class="widget-wrapper widget-wrapper-inline" data-widget-id="todo" data-widget-size="large">
+      <div class="widget-controls" id="controls-todo">
+        <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-compress"></i></button>
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="todo-section" id="todo-section">
+        <div class="todo-widget glass-card">
+          <div class="todo-header">
+            <h3><i class="fa-solid fa-list-check"></i> Teendők</h3>
+            <span class="todo-count" id="todo-count">0</span>
+          </div>
+          <div class="todo-list" id="todo-list"></div>
+          <div class="todo-add">
+            <input type="text" id="todo-input" placeholder="Új feladat hozzáadása..." class="todo-input">
+            <button class="btn btn-accent btn-sm" id="todo-add-btn">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RSS Section Widget -->
+    <div class="widget-wrapper widget-wrapper-inline" data-widget-id="rss" data-widget-size="large">
+      <div class="widget-controls" id="controls-rss">
+        <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-compress"></i></button>
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="rss-section" id="rss-section">
+        <div class="rss-header" id="rss-header">
+          <span class="rss-header-label"><i class="fa-solid fa-rss"></i> Hírek</span>
+          <button class="rss-toggle-btn" id="rss-toggle-btn" title="Nézet váltás">
+            <i class="fa-solid fa-up-right-and-down-left-from-center" id="rss-toggle-icon"></i>
+          </button>
+        </div>
+        <!-- Compact ticker -->
+        <div class="rss-ticker glass-card" id="rss-ticker">
+          <div class="rss-icon"><i class="fa-solid fa-rss"></i></div>
+          <div class="rss-track" id="rss-track">
+            <div class="rss-scroll" id="rss-scroll">
+              <span class="rss-loading">Hírek betöltése...</span>
+            </div>
+          </div>
+        </div>
+        <!-- Expanded cards -->
+        <div class="rss-cards" id="rss-cards" style="display:none"></div>
+      </section>
+    </div>
+
+    <!-- Plugin widgets container -->
+    <div id="plugin-widgets-container"></div>
+
+  </main>
+
+  <!-- Media Widget (bottom left, above settings) -->
+  <div class="widget-wrapper widget-wrapper-fixed" data-widget-id="media" data-widget-size="mini">
+    <div class="widget-controls" id="controls-media">
+      <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-expand"></i></button>
+      <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+    </div>
+    <div class="media-widget glass-card" id="media-widget">
+      <div class="media-art" id="media-art">
+        <i class="fa-solid fa-music media-art-placeholder"></i>
+      </div>
+      <div class="media-info">
+        <span class="media-title" id="media-title">Nincs lejátszás</span>
+        <span class="media-artist" id="media-artist"></span>
+      </div>
+      <div class="media-controls">
+        <button class="media-btn" id="media-prev" title="Előző"><i class="fa-solid fa-backward-step"></i></button>
+        <button class="media-btn media-btn-main" id="media-play" title="Lejátszás/Szünet"><i class="fa-solid fa-play" id="media-play-icon"></i></button>
+        <button class="media-btn" id="media-next" title="Következő"><i class="fa-solid fa-forward-step"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weather Widget -->
+  <div class="widget-wrapper widget-wrapper-fixed" data-widget-id="weather" data-widget-size="mini">
+    <div class="widget-controls" id="controls-weather">
+      <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-expand"></i></button>
+      <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+    </div>
+    <div class="weather-widget glass-card" id="weather-widget">
+      <i class="fa-solid fa-cloud-sun weather-icon" id="weather-icon"></i>
+      <span class="weather-temp" id="weather-temp">—°C</span>
+      <span class="weather-desc" id="weather-desc">Betöltés...</span>
+      <span class="weather-city" id="weather-city"></span>
+    </div>
+  </div>
+
+  <!-- Settings Button -->
+  <button class="settings-btn glass-card" id="settings-btn" aria-label="Beállítások">
+    <i class="fa-solid fa-gear"></i>
+  </button>
+
+  <!-- Scratchpad Toggle Button -->
+  <button class="scratchpad-toggle glass-card" id="scratchpad-toggle" aria-label="Gyorsjegyzet">
+    <i class="fa-solid fa-note-sticky"></i>
+  </button>
+
+  <!-- Vim Mode Indicator -->
+  <div class="vim-indicator" id="vim-indicator">
+    <span class="vim-mode" id="vim-mode">NORMAL</span>
+  </div>
+
+  <!-- Scratchpad Slide-in Panel -->
+  <div class="scratchpad-panel" id="scratchpad-panel">
+    <div class="scratchpad-header">
+      <h3><i class="fa-solid fa-note-sticky"></i> Gyorsjegyzet</h3>
+      <div class="scratchpad-status" id="scratchpad-status">Mentve ✓</div>
+      <button class="scratchpad-close" id="scratchpad-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <textarea class="scratchpad-textarea" id="scratchpad-textarea" placeholder="Írj ide bármit... automatikusan mentődik."></textarea>
+  </div>
+
+  <!-- Terminal Overlay -->
+  <div class="terminal-overlay" id="terminal-overlay">
+    <div class="terminal-window glass-card" id="terminal-window">
+      <div class="terminal-header">
+        <div class="terminal-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <span class="terminal-title" id="terminal-title">Terminal</span>
+        <button class="terminal-close" id="terminal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="terminal-body" id="terminal-body">
+        <div class="terminal-output" id="terminal-output"></div>
+        <div class="terminal-input-line">
+          <span class="terminal-prompt">❯</span>
+          <input type="text" class="terminal-input" id="terminal-input" placeholder="parancs..." autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal glass-card" id="settings-modal">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-sliders"></i> Beállítások</h2>
+        <button class="modal-close" id="modal-close" aria-label="Bezárás">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body" id="modal-body">
+        <!-- Tab Navigation -->
+        <div class="modal-tabs">
+          <button class="modal-tab active" data-tab="general">
+            <i class="fa-solid fa-house"></i> Általános
+          </button>
+          <button class="modal-tab" data-tab="widgets">
+            <i class="fa-solid fa-grip"></i> Widgetek
+          </button>
+          <button class="modal-tab" data-tab="themes">
+            <i class="fa-solid fa-palette"></i> Témák
+          </button>
+          <button class="modal-tab" data-tab="links">
+            <i class="fa-solid fa-link"></i> Linkek
+          </button>
+          <button class="modal-tab" data-tab="bangs">
+            <i class="fa-solid fa-bolt"></i> Bangek
+          </button>
+          <button class="modal-tab" data-tab="feeds">
+            <i class="fa-solid fa-rss"></i> RSS
+          </button>
+          <button class="modal-tab" data-tab="plugins">
+            <i class="fa-solid fa-puzzle-piece"></i> Pluginok
+          </button>
+        </div>
+
+        <!-- General Tab -->
+        <div class="tab-content active" id="tab-general">
+          <div class="form-group">
+            <label for="cfg-name"><i class="fa-solid fa-user"></i> Felhasználónév</label>
+            <input type="text" id="cfg-name" placeholder="pl. Rex">
+          </div>
+          <div class="form-group">
+            <label for="cfg-search-engine"><i class="fa-solid fa-magnifying-glass"></i> Keresőmotor URL</label>
+            <input type="url" id="cfg-search-engine" placeholder="https://duckduckgo.com/?q=">
+          </div>
+          <div class="form-group">
+            <label for="cfg-search-engine-name"><i class="fa-solid fa-tag"></i> Keresőmotor neve</label>
+            <input type="text" id="cfg-search-engine-name" placeholder="DuckDuckGo">
+          </div>
+          <div class="form-group">
+            <label for="cfg-bg-url"><i class="fa-solid fa-image"></i> Háttérkép URL</label>
+            <input type="url" id="cfg-bg-url" placeholder="https://example.com/wallpaper.jpg">
+          </div>
+          <div class="form-group">
+            <label for="cfg-bg-upload"><i class="fa-solid fa-upload"></i> Háttérkép feltöltés</label>
+            <input type="file" id="cfg-bg-upload" accept="image/*">
+          </div>
+          <div class="form-group">
+            <label for="cfg-weather-city"><i class="fa-solid fa-cloud-sun"></i> Időjárás város</label>
+            <input type="text" id="cfg-weather-city" placeholder="Budapest">
+          </div>
+          <div class="form-group">
+            <label for="cfg-pomodoro"><i class="fa-solid fa-clock"></i> Pomodoro (perc)</label>
+            <input type="number" id="cfg-pomodoro" min="5" max="120" value="25" class="form-input-sm">
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-terminal"></i> Beépített terminál</label>
+            <label class="toggle-label">
+              <input type="checkbox" id="cfg-terminal-enabled" checked>
+              <span class="toggle-text">Engedélyezve (> parancs a keresőben)</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="cfg-currency-target"><i class="fa-solid fa-coins"></i> Alapértelmezett cél valuta</label>
+            <input type="text" id="cfg-currency-target" placeholder="HUF" maxlength="3">
+          </div>
+        </div>
+
+        <!-- Widgets Tab -->
+        <div class="tab-content" id="tab-widgets">
+          <div class="widgets-manager" id="widgets-manager">
+            <p class="widgets-manager-hint"><i class="fa-solid fa-info-circle"></i> Húzd a widgeteket a sorrend módosításához. Kattints a szemre az elrejtéshez/megjelenítéshez, a méret ikonra a mini/nagy váltáshoz.</p>
+            <div class="widgets-list" id="widgets-list"></div>
+          </div>
+        </div>
+
+        <!-- Themes Tab -->
+        <div class="tab-content" id="tab-themes">
+          <div class="themes-section">
+            <h4 class="theme-section-title"><i class="fa-solid fa-swatchbook"></i> Beépített témák</h4>
+            <div class="theme-grid" id="theme-grid"></div>
+          </div>
+          <div class="themes-section">
+            <h4 class="theme-section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Téma mód</h4>
+            <div class="form-group">
+              <select id="cfg-theme-mode" class="form-select">
+                <option value="auto">Automatikus (napszak)</option>
+                <option value="night">Mindig sötét</option>
+                <option value="day">Mindig világos</option>
+                <option value="custom">Custom téma</option>
+              </select>
+            </div>
+          </div>
+          <div class="themes-section" id="custom-theme-section" style="display:none">
+            <h4 class="theme-section-title"><i class="fa-solid fa-paintbrush"></i> Custom téma szerkesztő</h4>
+            <div class="custom-theme-editor" id="custom-theme-editor">
+              <div class="form-group">
+                <label><i class="fa-solid fa-tag"></i> Téma neve</label>
+                <input type="text" id="custom-theme-name" placeholder="Az én témám">
+              </div>
+              <div class="color-pickers-grid">
+                <div class="color-picker-item">
+                  <label>Accent szín</label>
+                  <input type="color" id="ct-accent" value="#7c5cfc">
+                </div>
+                <div class="color-picker-item">
+                  <label>Accent (világos)</label>
+                  <input type="color" id="ct-accent-light" value="#9b82fc">
+                </div>
+                <div class="color-picker-item">
+                  <label>Háttér</label>
+                  <input type="color" id="ct-bg-deep" value="#07060b">
+                </div>
+                <div class="color-picker-item">
+                  <label>Üveg háttér</label>
+                  <input type="color" id="ct-glass-bg" value="#0f0f14">
+                </div>
+                <div class="color-picker-item">
+                  <label>Szöveg (fő)</label>
+                  <input type="color" id="ct-text-primary" value="#ebebeb">
+                </div>
+                <div class="color-picker-item">
+                  <label>Szöveg (másodlagos)</label>
+                  <input type="color" id="ct-text-secondary" value="#8c8c8c">
+                </div>
+                <div class="color-picker-item">
+                  <label>Siker szín</label>
+                  <input type="color" id="ct-success" value="#2dd4a8">
+                </div>
+                <div class="color-picker-item">
+                  <label>Veszély szín</label>
+                  <input type="color" id="ct-danger" value="#f4426e">
+                </div>
+              </div>
+              <div class="custom-theme-actions">
+                <button class="btn btn-accent" id="save-custom-theme"><i class="fa-solid fa-plus"></i> Mentés új témaként</button>
+                <button class="btn btn-ghost" id="export-theme"><i class="fa-solid fa-download"></i> Export</button>
+                <button class="btn btn-ghost" id="import-theme"><i class="fa-solid fa-upload"></i> Import</button>
+                <input type="file" id="import-theme-file" accept=".json" style="display:none">
+              </div>
+            </div>
+          </div>
+          <div class="themes-section" id="saved-themes-section" style="display:none">
+            <h4 class="theme-section-title"><i class="fa-solid fa-bookmark"></i> Mentett custom témák</h4>
+            <div class="theme-grid" id="custom-themes-grid"></div>
+          </div>
+        </div>
+
+        <!-- Links Tab -->
+        <div class="tab-content" id="tab-links">
+          <div id="links-editor"></div>
+          <button class="btn btn-accent" id="add-category-btn">
+            <i class="fa-solid fa-folder-plus"></i> Új kategória
+          </button>
+        </div>
+
+        <!-- Bangs Tab -->
+        <div class="tab-content" id="tab-bangs">
+          <div id="bangs-editor"></div>
+          <button class="btn btn-accent" id="add-bang-btn">
+            <i class="fa-solid fa-plus"></i> Új Bang
+          </button>
+        </div>
+
+        <!-- RSS Feeds Tab -->
+        <div class="tab-content" id="tab-feeds">
+          <div id="feeds-editor"></div>
+          <button class="btn btn-accent" id="add-feed-btn">
+            <i class="fa-solid fa-plus"></i> Új RSS feed
+          </button>
+        </div>
+
+        <!-- Plugins Tab -->
+        <div class="tab-content" id="tab-plugins">
+          <div class="plugins-section">
+            <h4 class="plugins-section-title"><i class="fa-solid fa-puzzle-piece"></i> Telepített pluginok</h4>
+            <div class="plugins-list" id="plugins-list">
+              <div class="plugins-empty"><i class="fa-solid fa-puzzle-piece"></i> Nincs telepített plugin</div>
+            </div>
+          </div>
+          <div class="plugins-section">
+            <h4 class="plugins-section-title"><i class="fa-solid fa-download"></i> Plugin telepítés</h4>
+            <div class="form-group">
+              <label><i class="fa-solid fa-link"></i> Telepítés URL-ről</label>
+              <div class="plugin-install-row">
+                <input type="url" id="plugin-install-url" placeholder="https://example.com/my-widget/">
+                <button class="btn btn-primary btn-sm" id="plugin-install-btn"><i class="fa-solid fa-download"></i> Telepítés</button>
+              </div>
+            </div>
+            <div class="plugin-install-divider"><span>vagy</span></div>
+            <div class="form-group">
+              <label><i class="fa-solid fa-file-code"></i> Feltöltés fájlokból</label>
+              <div class="plugin-upload-zone" id="plugin-upload-zone">
+                <input type="file" id="plugin-upload-manifest" accept=".json" style="display:none">
+                <input type="file" id="plugin-upload-js" accept=".js" style="display:none">
+                <input type="file" id="plugin-upload-css" accept=".css" style="display:none">
+                <div class="plugin-upload-files">
+                  <button class="btn btn-ghost btn-sm" id="plugin-pick-manifest"><i class="fa-solid fa-file-code"></i> manifest.json</button>
+                  <button class="btn btn-ghost btn-sm" id="plugin-pick-js"><i class="fa-brands fa-js"></i> widget.js</button>
+                  <button class="btn btn-ghost btn-sm" id="plugin-pick-css"><i class="fa-brands fa-css3-alt"></i> widget.css (opcionális)</button>
+                </div>
+                <div class="plugin-upload-status" id="plugin-upload-status"></div>
+                <button class="btn btn-primary btn-sm" id="plugin-upload-btn" disabled><i class="fa-solid fa-upload"></i> Plugin telepítése</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="modal-cancel">Mégse</button>
+        <button class="btn btn-primary" id="modal-save">
+          <i class="fa-solid fa-floppy-disk"></i> Mentés
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

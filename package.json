@@ -1,0 +1,16 @@
+{
+  "name": "startpage",
+  "version": "2.0.0",
+  "description": "Modern dark glassy browser startpage with system integration, vim navigation, and dashboard modules",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "rss-parser": "^3.13.0"
+  },
+  "keywords": ["startpage", "glassmorphism", "dark-theme", "arch-linux"],
+  "license": "MIT"
+}
