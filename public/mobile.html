@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AirDrop — Startpage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #07060b;
+      color: rgba(255,255,255,0.92);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1.25rem;
+      background-image:
+        radial-gradient(ellipse at 20% 80%, rgba(124,92,252,0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(45,212,168,0.06) 0%, transparent 50%);
+    }
+    .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    h1 { font-size: 1.3rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-bottom: 2rem; }
+    .card {
+      width: 100%; max-width: 460px;
+      background: rgba(15,15,20,0.55);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      margin-bottom: 1rem;
+    }
+    .card h3 {
+      font-size: 0.82rem; font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card h3 i { color: #7c5cfc; }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+      color: rgba(255,255,255,0.92);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+      outline: none;
+      caret-color: #7c5cfc;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #7c5cfc; box-shadow: 0 0 0 3px rgba(124,92,252,0.2); }
+    textarea::placeholder { color: rgba(255,255,255,0.25); font-family: 'Inter', sans-serif; }
+    .btn {
+      width: 100%; margin-top: 0.75rem; padding: 14px;
+      background: #7c5cfc; color: #fff;
+      border: none; border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; display: flex;
+      align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #9b82fc; }
+    .btn:active { transform: scale(0.98); }
+    .btn.sent { background: #2dd4a8; }
+    .status {
+      text-align: center; margin-top: 1rem;
+      font-size: 0.8rem; color: rgba(255,255,255,0.4);
+      min-height: 1.4em;
+    }
+    .status.success { color: #2dd4a8; }
+    .history { display: flex; flex-direction: column; gap: 6px; margin-top: 0.5rem; }
+    .history-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.7);
+      word-break: break-all;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .history-item .time { font-size: 0.68rem; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+    .desktop-link {
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.3);
+    }
+    .desktop-link a { color: #7c5cfc; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="logo">📱</div>
+  <h1>AirDrop</h1>
+  <p class="subtitle">Küldj szöveget a gépedre</p>
+
+  <div class="card">
+    <h3><i class="fa-solid fa-paper-plane"></i> Küldés</h3>
+    <textarea id="clip-text" placeholder="Illeszd be vagy írd ide a szöveget..."></textarea>
+    <button class="btn" id="send-btn">
+      <i class="fa-solid fa-paper-plane"></i> Küldés a gépre
+    </button>
+  </div>
+
+  <div class="card" id="history-card" style="display:none">
+    <h3><i class="fa-solid fa-clock-rotate-left"></i> Előzmények</h3>
+    <div class="history" id="history"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <p class="desktop-link">
+    <a href="/?force=desktop">Asztali nézet megnyitása →</a>
+  </p>
+
+  <script>
+    const textarea = document.getElementById('clip-text');
+    const sendBtn = document.getElementById('send-btn');
+    const statusEl = document.getElementById('status');
+    const historyEl = document.getElementById('history');
+    const historyCard = document.getElementById('history-card');
+    const sentItems = [];
+
+    sendBtn.addEventListener('click', async () => {
+      const text = textarea.value.trim();
+      if (!text) return;
+
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Küldés...';
+
+      try {
+        const res = await fetch('/api/clipboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (data.success) {
+          sendBtn.classList.add('sent');
+          sendBtn.innerHTML = '<i class="fa-solid fa-check"></i> Elküldve!';
+          statusEl.textContent = 'Megjelent a gépen ✓';
+          statusEl.className = 'status success';
+
+          sentItems.unshift({ text: text.slice(0, 100), time: new Date().toLocaleTimeString('hu-HU') });
+          renderHistory();
+          textarea.value = '';
+
+          setTimeout(() => {
+            sendBtn.classList.remove('sent');
+            sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Küldés a gépre';
+            sendBtn.disabled = false;
+          }, 2000);
+        }
+      } catch (err) {
+        statusEl.textContent = 'Hiba: ' + err.message;
+        statusEl.className = 'status';
+        sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Küldés a gépre';
+        sendBtn.disabled = false;
+      }
+    });
+
+    function renderHistory() {
+      if (sentItems.length === 0) { historyCard.style.display = 'none'; return; }
+      historyCard.style.display = 'block';
+      historyEl.innerHTML = sentItems.slice(0, 5).map(item =>
+        `<div class="history-item"><span class="time">${item.time}</span> ${escapeHtml(item.text)}</div>`
+      ).join('');
+    }
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  </script>
+</body>
+</html>

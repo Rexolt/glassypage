@@ -1,0 +1,13 @@
+{
+  "id": "example-crypto",
+  "name": "Kripto & Árfolyam Figyelő",
+  "version": "2.0.0",
+  "author": "Startpage",
+  "description": "Testreszabható kriptovaluta figyelőlista — Bitcoin, Ethereum és 20+ coin aktuális árfolyama, market cap és 24h változás. Kibontható nézet és egyedi watchlist.",
+  "icon": "fa-solid fa-chart-line",
+  "minSize": "mini",
+  "maxSize": "large",
+  "defaultSize": "mini",
+  "refreshInterval": 60000,
+  "permissions": ["fetch"]
+}
