@@ -186,6 +186,11 @@
       "id": "weather",
       "size": "mini",
       "visible": true
+    },
+    {
+      "id": "docker",
+      "size": "large",
+      "visible": true
     }
   ]
 }
