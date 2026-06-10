@@ -1,12 +1,12 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { execFile, execSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 const os = require('os');
 const RSSParser = require('rss-parser');
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3000;
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const SCRATCHPAD_PATH = path.join(__dirname, 'scratchpad.txt');
 const PLUGINS_DIR = path.join(__dirname, 'plugins');
@@ -37,7 +37,20 @@ function writeConfig(config) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
 }
 
-// SECURITY: Safe exec using execFile (no shell interpretation)
+// SECURITY: Safe exec using execFile — no shell interpretation, args passed as array
+function safeExecFile(file, args = [], timeout = 5000) {
+  try {
+    return execFileSync(file, args, {
+      timeout,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Exec helper — runs through bash, callers MUST validate/whitelist input
 function safeExecCmd(cmd, timeout = 5000) {
   try {
     return execSync(cmd, {
@@ -64,6 +77,8 @@ function isValidExternalUrl(urlStr) {
     if (parts.length === 4) {
       const a = parseInt(parts[0]);
       if (a === 10) return false;
+      if (a === 127) return false;
+      if (a === 169 && parseInt(parts[1]) === 254) return false;
       if (a === 172 && parseInt(parts[1]) >= 16 && parseInt(parts[1]) <= 31) return false;
       if (a === 192 && parseInt(parts[1]) === 168) return false;
     }
@@ -76,7 +91,6 @@ function isValidExternalUrl(urlStr) {
 // SECURITY: Validate config schema
 function validateConfig(cfg) {
   if (!cfg || typeof cfg !== 'object') return false;
-  // Check required string fields
   // Check required string fields
   const stringFields = ['searchEngine', 'searchEngineName', 'backgroundUrl', 'weatherCity', 'userName', 'themeMode', 'activeTheme'];
   for (const f of stringFields) {
@@ -126,14 +140,21 @@ app.post('/api/config', (req, res) => {
 // ============================================
 // API: WEATHER
 // ============================================
+const weatherCache = new Map();
+const WEATHER_CACHE_TTL = 10 * 60 * 1000;
+
 app.get('/api/weather', async (req, res) => {
   const city = req.query.city || 'Budapest';
+  const cached = weatherCache.get(city);
+  if (cached && Date.now() - cached.timestamp < WEATHER_CACHE_TTL) {
+    return res.json(cached.data);
+  }
   try {
     const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
     if (!response.ok) throw new Error(`wttr.in responded with ${response.status}`);
     const data = await response.json();
     const current = data.current_condition?.[0] || {};
-    res.json({
+    const payload = {
       temp_C: current.temp_C || '—',
       temp_F: current.temp_F || '—',
       feelslike_C: current.FeelsLikeC || '—',
@@ -142,7 +163,9 @@ app.get('/api/weather', async (req, res) => {
       weatherCode: current.weatherCode || '113',
       windspeedKmph: current.windspeedKmph || '—',
       city: city
-    });
+    };
+    weatherCache.set(city, { data: payload, timestamp: Date.now() });
+    res.json(payload);
   } catch (err) {
     console.error('Weather fetch failed:', err.message);
     res.json({ temp_C: '—', description: 'Unavailable', weatherCode: '113', city });
@@ -287,7 +310,7 @@ const ALLOWED_COMMANDS = [
   'sort', 'uniq', 'cut', 'tr', 'sed', 'awk', 'diff', 'comm',
   'ping', 'dig', 'nslookup', 'traceroute', 'curl', 'wget',
   'sensors', 'acpi', 'xdg-open', 'playerctl', 'pactl', 'amixer',
-  'systemctl', 'journalctl', 'loginctl', 'timedatectl',
+  'systemctl', 'journalctl', 'loginctl', 'timedatectl', 'docker', 'podman',
   'man', 'help', 'type', 'command'
 ];
 
@@ -313,13 +336,13 @@ app.post('/api/exec', (req, res) => {
       return res.status(400).json({ error: 'Invalid command' });
     }
 
-    // SECURITY: Block dangerous patterns
-    if (/[`]|\$\(|\$\{|>\s*\/|<\(|;\s*(rm|dd|sudo|bash|sh|eval)/.test(command)) {
+    // SECURITY: Block dangerous patterns (subshells, backgrounding, redirection to absolute paths)
+    if (/[`]|\$\(|\$\{|>\s*\/|<\(|\n/.test(command)) {
       return res.json({ output: '⛔ Blocked: dangerous shell pattern detected.', exitCode: 1 });
     }
 
-    // SECURITY: Check all commands in pipe chain
-    const segments = command.split(/\s*[|;]\s*/);
+    // SECURITY: Check all commands in pipe/chain (|, ||, &&, &, ;)
+    const segments = command.split(/\s*(?:\|\|?|&&?|;)\s*/);
     for (const seg of segments) {
       const firstWord = seg.trim().split(/\s+/)[0]?.toLowerCase();
       if (!firstWord) continue;
@@ -644,6 +667,109 @@ app.post('/api/plugins/install', async (req, res) => {
   }
   
   res.status(400).json({ error: 'Provide url or manifest+code' });
+});
+
+// ============================================
+// API: DOCKER
+// ============================================
+const DOCKER_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
+
+function dockerAvailable() {
+  return safeExecFile('docker', ['version', '--format', '{{.Server.Version}}'], 4000);
+}
+
+app.get('/api/docker', (req, res) => {
+  try {
+    const version = dockerAvailable();
+    if (!version) {
+      return res.json({ available: false, containers: [], images: 0 });
+    }
+
+    const psOut = safeExecFile('docker', [
+      'ps', '-a', '--no-trunc',
+      '--format', '{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.State}}\t{{.Status}}\t{{.Ports}}'
+    ], 8000);
+
+    const containers = (psOut || '').split('\n').filter(Boolean).map(line => {
+      const [id, name, image, state, status, ports] = line.split('\t');
+      return {
+        id: (id || '').slice(0, 12),
+        name: name || '',
+        image: image || '',
+        state: state || '',
+        status: status || '',
+        ports: ports || ''
+      };
+    });
+
+    const imagesOut = safeExecFile('docker', ['images', '-q'], 8000);
+    const images = imagesOut ? imagesOut.split('\n').filter(Boolean).length : 0;
+
+    res.json({
+      available: true,
+      version,
+      running: containers.filter(c => c.state === 'running').length,
+      total: containers.length,
+      containers,
+      images
+    });
+  } catch (err) {
+    res.json({ available: false, containers: [], images: 0, error: err.message });
+  }
+});
+
+app.get('/api/docker/stats', (req, res) => {
+  try {
+    if (!dockerAvailable()) return res.json({ available: false, stats: [] });
+    const out = safeExecFile('docker', [
+      'stats', '--no-stream',
+      '--format', '{{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}'
+    ], 15000);
+    const stats = (out || '').split('\n').filter(Boolean).map(line => {
+      const [id, name, cpu, mem, memPerc] = line.split('\t');
+      return { id: (id || '').slice(0, 12), name, cpu, mem, memPerc };
+    });
+    res.json({ available: true, stats });
+  } catch (err) {
+    res.json({ available: false, stats: [], error: err.message });
+  }
+});
+
+app.post('/api/docker/control', (req, res) => {
+  const { action, container } = req.body || {};
+  const allowed = ['start', 'stop', 'restart', 'pause', 'unpause'];
+  if (!allowed.includes(action)) {
+    return res.status(400).json({ error: 'Invalid action' });
+  }
+  if (!container || typeof container !== 'string' || !DOCKER_NAME_RE.test(container)) {
+    return res.status(400).json({ error: 'Invalid container name/ID' });
+  }
+  try {
+    const out = safeExecFile('docker', [action, container], 30000);
+    if (out === null) return res.status(500).json({ error: `docker ${action} failed` });
+    res.json({ success: true, output: out });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/docker/logs/:id', (req, res) => {
+  const id = req.params.id;
+  if (!DOCKER_NAME_RE.test(id)) return res.status(400).json({ error: 'Invalid container ID' });
+  try {
+    // ID is strictly validated by DOCKER_NAME_RE above — safe to interpolate
+    const out = safeExecCmd(`docker logs --tail 100 ${id} 2>&1`, 10000);
+    res.json({ logs: out !== null ? out : '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// API: HEALTH (for Docker HEALTHCHECK / monitoring)
+// ============================================
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: Math.round(process.uptime()), version: '2.0.0' });
 });
 
 // ============================================

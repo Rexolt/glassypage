@@ -223,6 +223,38 @@
       </section>
     </div>
 
+    <!-- Docker Widget -->
+    <div class="widget-wrapper widget-wrapper-inline widget-hidden" data-widget-id="docker" data-widget-size="large">
+      <div class="widget-controls" id="controls-docker">
+        <button class="widget-ctrl-btn" data-action="resize" title="Méret váltás"><i class="fa-solid fa-compress"></i></button>
+        <button class="widget-ctrl-btn" data-action="hide" title="Elrejtés"><i class="fa-solid fa-eye-slash"></i></button>
+        <button class="widget-ctrl-btn widget-drag-handle" data-action="drag" title="Mozgatás"><i class="fa-solid fa-grip-vertical"></i></button>
+      </div>
+      <section class="docker-section" id="docker-section">
+        <div class="docker-widget glass-card" id="docker-widget">
+          <div class="docker-header">
+            <h3><i class="fa-brands fa-docker"></i> Docker</h3>
+            <div class="docker-summary" id="docker-summary">
+              <span class="docker-stat" title="Futó konténerek"><span class="docker-dot running"></span><span id="docker-running">0</span></span>
+              <span class="docker-stat" title="Összes konténer"><i class="fa-solid fa-cube"></i><span id="docker-total">0</span></span>
+              <span class="docker-stat" title="Image-ek"><i class="fa-solid fa-layer-group"></i><span id="docker-images">0</span></span>
+              <button class="btn btn-ghost btn-sm" id="docker-refresh" title="Frissítés"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+          </div>
+          <div class="docker-list" id="docker-list">
+            <div class="docker-empty">Docker nem elérhető</div>
+          </div>
+          <div class="docker-logs" id="docker-logs" style="display:none">
+            <div class="docker-logs-header">
+              <span id="docker-logs-title">Logok</span>
+              <button class="docker-logs-close" id="docker-logs-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <pre class="docker-logs-body" id="docker-logs-body"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+
     <!-- Plugin widgets container -->
     <div id="plugin-widgets-container"></div>
 

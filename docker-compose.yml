@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  glassypage:
+    build: .
+    image: glassypage:latest
+    container_name: glassypage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    volumes:
+      # Persist config and plugins between restarts
+      - ./config.json:/app/config.json
+      - ./plugins:/app/plugins
+      - ./scratchpad.txt:/app/scratchpad.txt
+    # Give the container access to the Docker socket so the
+    # Docker widget can query the host's containers
+    # ⚠️  Only enable this if you trust the host network / users
+    # volumes:
+    #   - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

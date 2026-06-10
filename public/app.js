@@ -148,6 +148,16 @@
     pluginUploadBtn: $('#plugin-upload-btn'),
     pluginWidgetsContainer: $('#plugin-widgets-container'),
     mainContainer: $('#main-container'),
+    dockerWrapper: $('.widget-wrapper[data-widget-id="docker"]'),
+    dockerList: $('#docker-list'),
+    dockerRunning: $('#docker-running'),
+    dockerTotal: $('#docker-total'),
+    dockerImages: $('#docker-images'),
+    dockerRefresh: $('#docker-refresh'),
+    dockerLogs: $('#docker-logs'),
+    dockerLogsTitle: $('#docker-logs-title'),
+    dockerLogsBody: $('#docker-logs-body'),
+    dockerLogsClose: $('#docker-logs-close'),
   };
 
   // ============================================
@@ -160,6 +170,7 @@
     { id: 'links', name: 'Gyorslinkek', icon: 'fa-solid fa-link', defaultSize: 'large', canResize: true },
     { id: 'todo', name: 'Teendők', icon: 'fa-solid fa-list-check', defaultSize: 'large', canResize: true },
     { id: 'rss', name: 'RSS Hírek', icon: 'fa-solid fa-rss', defaultSize: 'large', canResize: true },
+    { id: 'docker', name: 'Docker', icon: 'fa-brands fa-docker', defaultSize: 'large', canResize: true },
     { id: 'pomodoro', name: 'Pomodoro', icon: 'fa-solid fa-stopwatch', defaultSize: 'mini', canResize: true },
     { id: 'media', name: 'Zenelejátszó', icon: 'fa-solid fa-music', defaultSize: 'mini', canResize: true },
     { id: 'weather', name: 'Időjárás', icon: 'fa-solid fa-cloud-sun', defaultSize: 'mini', canResize: true },
@@ -740,11 +751,12 @@
               const script = document.createElement('script');
               script.src = `/api/plugins/${plugin.id}/code`;
               script.dataset.plugin = plugin.id;
-              document.body.appendChild(script);
-              await new Promise((resolve, reject) => {
+              const loaded = new Promise((resolve, reject) => {
                 script.onload = resolve;
                 script.onerror = reject;
               });
+              document.body.appendChild(script);
+              await loaded;
             } catch {}
           }
         }
@@ -954,6 +966,12 @@
     if (!config.widgetLayout) {
       config.widgetLayout = BUILT_IN_WIDGETS.map(w => ({ id: w.id, size: w.defaultSize, visible: true }));
     }
+    // Add any new built-in widgets missing from a previously saved layout
+    BUILT_IN_WIDGETS.forEach(w => {
+      if (!config.widgetLayout.find(l => l.id === w.id)) {
+        config.widgetLayout.push({ id: w.id, size: w.defaultSize, visible: true });
+      }
+    });
     if (!config.customThemes) config.customThemes = [];
     if (!config.plugins) config.plugins = [];
     if (!config.activeTheme) config.activeTheme = '';
@@ -974,6 +992,8 @@
     renderAgenda();
     initPomodoro();
     bindEvents();
+    bindDockerEvents();
+    fetchDocker();
 
     // Apply widget layout
     WidgetManager.applyLayout();
@@ -997,6 +1017,7 @@
     setInterval(fetchUpdates, 30 * 60 * 1000);
     setInterval(fetchNetwork, 30 * 1000);
     setInterval(fetchMedia, 10 * 1000);
+    setInterval(() => { if (dockerAvailable || !document.hidden) fetchDocker(); }, 30 * 1000);
     setInterval(() => ThemeManager.apply(), 5 * 60 * 1000);
     setInterval(pollClipboard, 5 * 1000);
   }
@@ -1337,6 +1358,108 @@
       if (data.count > 0) { dom.sysUpdates.classList.add('has-updates'); dom.sysUpdates.title = `${data.count} frissítés elérhető`; }
       else { dom.sysUpdates.classList.remove('has-updates'); dom.sysUpdates.title = 'Arch naprakész'; }
     } catch { dom.updatesCount.textContent = '?'; }
+  }
+
+  // ============================================
+  // DOCKER
+  // ============================================
+  let dockerAvailable = false;
+
+  async function fetchDocker() {
+    if (!dom.dockerList) return;
+    try {
+      const res = await fetch('/api/docker');
+      const data = await res.json();
+      dockerAvailable = !!data.available;
+
+      if (!data.available) {
+        dom.dockerList.innerHTML = '<div class="docker-empty"><i class="fa-brands fa-docker"></i> Docker nem elérhető ezen a gépen</div>';
+        dom.dockerRunning.textContent = '0';
+        dom.dockerTotal.textContent = '0';
+        dom.dockerImages.textContent = '0';
+        return;
+      }
+
+      dom.dockerRunning.textContent = data.running;
+      dom.dockerTotal.textContent = data.total;
+      dom.dockerImages.textContent = data.images;
+
+      if (!data.containers.length) {
+        dom.dockerList.innerHTML = '<div class="docker-empty"><i class="fa-solid fa-cube"></i> Nincs konténer</div>';
+        return;
+      }
+
+      dom.dockerList.innerHTML = data.containers.map(c => {
+        const running = c.state === 'running';
+        const paused = c.state === 'paused';
+        return `
+        <div class="docker-item" data-container="${escapeAttr(c.name || c.id)}" data-id="${escapeAttr(c.id)}">
+          <span class="docker-dot ${running ? 'running' : paused ? 'paused' : 'stopped'}" title="${escapeAttr(c.state)}"></span>
+          <div class="docker-item-info">
+            <span class="docker-item-name">${escapeHtml(c.name)}</span>
+            <span class="docker-item-meta">${escapeHtml(c.image)}${c.ports ? ' · ' + escapeHtml(c.ports) : ''}</span>
+            <span class="docker-item-status">${escapeHtml(c.status)}</span>
+          </div>
+          <div class="docker-item-actions">
+            ${running || paused ? `
+              <button class="docker-action-btn" data-action="${paused ? 'unpause' : 'pause'}" title="${paused ? 'Folytatás' : 'Szünet'}"><i class="fa-solid fa-${paused ? 'play' : 'pause'}"></i></button>
+              <button class="docker-action-btn" data-action="restart" title="Újraindítás"><i class="fa-solid fa-rotate-right"></i></button>
+              <button class="docker-action-btn danger" data-action="stop" title="Leállítás"><i class="fa-solid fa-stop"></i></button>
+            ` : `
+              <button class="docker-action-btn success" data-action="start" title="Indítás"><i class="fa-solid fa-play"></i></button>
+            `}
+            <button class="docker-action-btn" data-action="logs" title="Logok"><i class="fa-solid fa-file-lines"></i></button>
+          </div>
+        </div>`;
+      }).join('');
+    } catch {
+      dockerAvailable = false;
+      dom.dockerList.innerHTML = '<div class="docker-empty">Hiba a Docker lekérdezésekor</div>';
+    }
+  }
+
+  async function dockerControl(action, container, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+    try {
+      const res = await fetch('/api/docker/control', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, container })
+      });
+      const data = await res.json();
+      if (data.success) toast(`Docker: ${action} — ${container}`, 'success');
+      else toast(`Docker hiba: ${data.error || action + ' sikertelen'}`, 'error');
+    } catch {
+      toast('Docker hiba!', 'error');
+    }
+    await fetchDocker();
+  }
+
+  async function dockerShowLogs(container) {
+    try {
+      const res = await fetch(`/api/docker/logs/${encodeURIComponent(container)}`);
+      const data = await res.json();
+      dom.dockerLogsTitle.textContent = `Logok — ${container}`;
+      dom.dockerLogsBody.textContent = data.logs || '(nincs log)';
+      dom.dockerLogs.style.display = 'flex';
+      dom.dockerLogsBody.scrollTop = dom.dockerLogsBody.scrollHeight;
+    } catch {
+      toast('Nem sikerült betölteni a logokat', 'error');
+    }
+  }
+
+  function bindDockerEvents() {
+    dom.dockerRefresh?.addEventListener('click', () => fetchDocker());
+    dom.dockerLogsClose?.addEventListener('click', () => { dom.dockerLogs.style.display = 'none'; });
+    dom.dockerList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.docker-action-btn');
+      if (!btn) return;
+      const item = btn.closest('.docker-item');
+      const container = item?.dataset.container;
+      const action = btn.dataset.action;
+      if (!container || !action) return;
+      if (action === 'logs') dockerShowLogs(container);
+      else dockerControl(action, container, btn);
+    });
   }
 
   // ============================================
