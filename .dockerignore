@@ -8,6 +8,9 @@ npm-debug.log
 .env
 .env.*
 !.env.example
+# Live config is seeded from config.example.json at runtime — never bake a
+# personal config.json into the image.
+config.json
 scratchpad.txt
 Makefile
 .dockerignore

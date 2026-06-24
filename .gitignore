@@ -13,6 +13,9 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# Live config (seeded from config.example.json on first run)
+/config.json
+
 # Logs
 *.log
 logs/
