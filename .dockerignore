@@ -1,6 +1,14 @@
 node_modules
+npm-debug.log
 .git
 .gitignore
+.github
 *.md
 *.log
+.env
+.env.*
+!.env.example
 scratchpad.txt
+Makefile
+.dockerignore
+glassypage_preview.png

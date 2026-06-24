@@ -1,26 +1,34 @@
-version: '3.9'
-
 services:
   glassypage:
     build: .
     image: glassypage:latest
     container_name: glassypage
     restart: unless-stopped
+    # Proper PID-1 signal handling / zombie reaping
+    init: true
+    # Run as the host user so bind-mounted files stay writable (see .env.example).
+    user: "${PUID:-1000}:${PGID:-1000}"
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       - PORT=3000
       - NODE_ENV=production
+      - TZ=${TZ:-UTC}
     volumes:
-      # Persist config and plugins between restarts
+      # Persist config, plugins and scratchpad between restarts
       - ./config.json:/app/config.json
       - ./plugins:/app/plugins
       - ./scratchpad.txt:/app/scratchpad.txt
-    # Give the container access to the Docker socket so the
-    # Docker widget can query the host's containers
-    # ⚠️  Only enable this if you trust the host network / users
-    # volumes:
-    #   - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Docker widget: read + control the host's containers from the dashboard.
+      # ⚠️  Access to the Docker socket is effectively root on the host — only
+      #     enable on machines/networks you trust. Append ":ro" for read-only
+      #     (stats/list work, but start/stop/restart will not).
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Let the non-root container user use the mounted Docker socket.
+    # Set DOCKER_GID in .env to your host "docker" group id:
+    #   getent group docker | cut -d: -f3
+    group_add:
+      - "${DOCKER_GID:-999}"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s

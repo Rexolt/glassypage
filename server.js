@@ -50,17 +50,113 @@ function safeExecFile(file, args = [], timeout = 5000) {
   }
 }
 
-// Exec helper — runs through bash, callers MUST validate/whitelist input
+// Exec helper — runs through a shell, callers MUST validate/whitelist input.
+// Falls back to /bin/sh when bash is missing (e.g. minimal Debian / Alpine).
+const SHELL = fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
 function safeExecCmd(cmd, timeout = 5000) {
   try {
     return execSync(cmd, {
       timeout,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: '/bin/bash'
+      shell: SHELL
     }).trim();
   } catch {
     return null;
+  }
+}
+
+// ============================================
+// DISTRO DETECTION (cross-distro support)
+// Arch · Debian/Ubuntu · Fedora/RHEL · openSUSE · Alpine
+// ============================================
+let _distroCache = null;
+function detectDistro() {
+  if (_distroCache) return _distroCache;
+
+  let id = '', idLike = '', pretty = '';
+  try {
+    const txt = fs.readFileSync('/etc/os-release', 'utf-8');
+    const get = (key) => {
+      const m = txt.match(new RegExp('^' + key + '=(.*)$', 'm'));
+      return m ? m[1].replace(/^"|"$/g, '').trim() : '';
+    };
+    id = get('ID').toLowerCase();
+    idLike = get('ID_LIKE').toLowerCase();
+    pretty = get('PRETTY_NAME') || get('NAME');
+  } catch { /* /etc/os-release missing (e.g. inside a slim container) */ }
+
+  const hay = `${id} ${idLike}`;
+  let manager = 'unknown';
+  if (/\b(arch|manjaro|endeavouros|garuda|artix|cachyos)\b/.test(hay)) manager = 'pacman';
+  else if (/\b(debian|ubuntu|raspbian|linuxmint|mint|pop|elementary|kali|devuan|deepin|zorin|mx)\b/.test(hay)) manager = 'apt';
+  else if (/\b(fedora|rhel|centos|rocky|almalinux|nobara|ol)\b/.test(hay)) manager = 'dnf';
+  else if (/\b(opensuse|suse|sles)\b/.test(hay)) manager = 'zypper';
+  else if (/\b(alpine)\b/.test(hay)) manager = 'apk';
+
+  // Fallback: probe for the package-manager binaries if os-release was inconclusive
+  if (manager === 'unknown') {
+    const has = (bin) => !!safeExecCmd(`command -v ${bin} >/dev/null 2>&1 && echo y`, 3000);
+    if (has('checkupdates') || has('pacman')) manager = 'pacman';
+    else if (has('apt')) manager = 'apt';
+    else if (has('dnf') || has('yum')) manager = 'dnf';
+    else if (has('zypper')) manager = 'zypper';
+    else if (has('apk')) manager = 'apk';
+  }
+
+  _distroCache = {
+    id: id || 'linux',
+    name: pretty || 'Linux',
+    packageManager: manager
+  };
+  return _distroCache;
+}
+
+// Returns the list of pending package updates for the given package manager.
+// All commands read the LOCAL package cache only — no root and no network
+// required (so it works unprivileged, inside containers, and on Debian).
+function getPendingUpdates(manager) {
+  switch (manager) {
+    case 'pacman': {
+      const out = safeExecCmd('checkupdates 2>/dev/null', 12000);
+      return (out || '').split('\n').filter(Boolean).map(line => {
+        const p = line.split(/\s+/);
+        return { name: p[0], from: p[1], to: p[3] };
+      });
+    }
+    case 'apt': {
+      const out = safeExecCmd('apt list --upgradable 2>/dev/null', 12000);
+      return (out || '').split('\n').filter(l => l.includes('[upgradable')).map(line => {
+        // e.g.  vim/stable 2:8.2 amd64 [upgradable from: 2:8.1]
+        const name = line.split('/')[0];
+        const to = line.split(/\s+/)[1] || '';
+        const from = (line.match(/upgradable from:\s*([^\]]+)\]/) || [])[1] || '';
+        return { name, from: from.trim(), to };
+      });
+    }
+    case 'dnf': {
+      // `dnf check-update` exits 100 when updates exist → force exit 0 to keep output.
+      const out = safeExecCmd('dnf -q check-update 2>/dev/null; true', 20000);
+      return (out || '').split('\n').filter(l => /^\S+\.\S+\s+\S+\s+\S+/.test(l)).map(line => {
+        const p = line.split(/\s+/);
+        return { name: p[0], from: '', to: p[1] };
+      });
+    }
+    case 'zypper': {
+      const out = safeExecCmd('zypper -q list-updates 2>/dev/null; true', 20000);
+      return (out || '').split('\n').filter(l => l.startsWith('v |')).map(line => {
+        const c = line.split('|').map(s => s.trim());
+        return { name: c[2] || '', from: c[3] || '', to: c[4] || '' };
+      });
+    }
+    case 'apk': {
+      const out = safeExecCmd("apk version -l '<' 2>/dev/null; true", 12000);
+      return (out || '').split('\n').filter(l => l.includes('<') && !/Installed/.test(l)).map(line => {
+        return { name: line.split(/\s+/)[0], from: '', to: '' };
+      });
+    }
+    default:
+      return [];
   }
 }
 
@@ -92,7 +188,7 @@ function isValidExternalUrl(urlStr) {
 function validateConfig(cfg) {
   if (!cfg || typeof cfg !== 'object') return false;
   // Check required string fields
-  const stringFields = ['searchEngine', 'searchEngineName', 'backgroundUrl', 'weatherCity', 'userName', 'themeMode', 'activeTheme'];
+  const stringFields = ['searchEngine', 'searchEngineName', 'backgroundUrl', 'weatherCity', 'userName', 'themeMode', 'activeTheme', 'packageManager'];
   for (const f of stringFields) {
     if (cfg[f] !== undefined && typeof cfg[f] !== 'string') return false;
   }
@@ -211,12 +307,17 @@ app.get('/api/system', (req, res) => {
       else uptimeStr = `${mins}m`;
     } catch {}
 
+    const distro = detectDistro();
     res.json({
       cpu: { percent: cpuPercent, cores: os.cpus().length },
       ram: { percent: ramPercent, used: ramUsedGB, total: ramTotalGB },
       disk: { percent: diskPercent, used: diskUsed, total: diskTotal },
       uptime: uptimeStr,
-      hostname: os.hostname()
+      hostname: os.hostname(),
+      os: { name: distro.name, id: distro.id, packageManager: distro.packageManager },
+      kernel: os.release(),
+      platform: process.platform,
+      arch: process.arch
     });
   } catch (err) {
     res.json({ cpu: { percent: 0 }, ram: { percent: 0 }, disk: { percent: 0 }, uptime: '—' });
@@ -224,23 +325,29 @@ app.get('/api/system', (req, res) => {
 });
 
 // ============================================
-// API: ARCH UPDATES
+// API: PACKAGE UPDATES (distro-aware: pacman / apt / dnf / zypper / apk)
 // ============================================
+const VALID_MANAGERS = ['pacman', 'apt', 'dnf', 'zypper', 'apk'];
+
 app.get('/api/updates', (req, res) => {
   try {
-    const output = safeExecCmd('checkupdates 2>/dev/null', 10000);
-    if (!output) {
-      res.json({ count: 0, packages: [] });
-    } else {
-      const lines = output.split('\n').filter(Boolean);
-      res.json({
-        count: lines.length,
-        packages: lines.slice(0, 20).map(line => {
-          const parts = line.split(/\s+/);
-          return { name: parts[0], from: parts[1], to: parts[3] };
-        })
-      });
-    }
+    const distro = detectDistro();
+    // Optional override from config (e.g. "packageManager": "apt") or query string
+    let manager = distro.packageManager;
+    try {
+      const cfg = readConfig();
+      if (VALID_MANAGERS.includes(cfg.packageManager)) manager = cfg.packageManager;
+    } catch { /* config unreadable — fall back to detected manager */ }
+    if (VALID_MANAGERS.includes(req.query.manager)) manager = req.query.manager;
+
+    const pkgs = getPendingUpdates(manager);
+    res.json({
+      count: pkgs.length,
+      packages: pkgs.slice(0, 20),
+      manager,
+      distro: distro.name,
+      distroId: distro.id
+    });
   } catch (err) {
     res.json({ count: 0, packages: [], error: err.message });
   }
@@ -303,9 +410,12 @@ const ALLOWED_COMMANDS = [
   'ls', 'cat', 'head', 'tail', 'wc', 'grep', 'find', 'which', 'whereis',
   'echo', 'printf', 'date', 'cal', 'uptime', 'whoami', 'hostname', 'uname',
   'free', 'df', 'du', 'lsblk', 'lscpu', 'lsusb', 'lspci', 'ip', 'ss',
-  'ps', 'top', 'htop', 'neofetch', 'fastfetch', 'screenfetch',
+  'ps', 'top', 'htop', 'btop', 'neofetch', 'fastfetch', 'screenfetch', 'lsb_release',
+  // Package managers (read/query — installs still need root which is blocked)
   'pacman', 'paru', 'yay', 'checkupdates',
-  'git', 'node', 'python', 'python3', 'pip', 'npm', 'npx', 'cargo', 'rustc',
+  'apt', 'apt-get', 'apt-cache', 'apt-mark', 'dpkg', 'dpkg-query', 'aptitude', 'nala',
+  'dnf', 'yum', 'rpm', 'zypper', 'apk', 'flatpak', 'snap',
+  'git', 'node', 'python', 'python3', 'pip', 'pip3', 'npm', 'npx', 'cargo', 'rustc', 'go',
   'pwd', 'env', 'printenv', 'id', 'groups', 'file', 'stat', 'md5sum', 'sha256sum',
   'sort', 'uniq', 'cut', 'tr', 'sed', 'awk', 'diff', 'comm',
   'ping', 'dig', 'nslookup', 'traceroute', 'curl', 'wget',
