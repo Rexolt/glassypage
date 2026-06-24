@@ -45,7 +45,7 @@
       <i class="fa-solid fa-clock-rotate-left"></i>
       <span class="sys-value" id="uptime-value">—</span>
     </div>
-    <div class="sys-pill sys-pill-updates" id="sys-updates" title="Arch frissítések">
+    <div class="sys-pill sys-pill-updates" id="sys-updates" title="Csomagfrissítések">
       <i class="fa-brands fa-linux"></i>
       <span class="updates-count" id="updates-count">—</span>
     </div>
@@ -419,6 +419,17 @@
           <div class="form-group">
             <label for="cfg-currency-target"><i class="fa-solid fa-coins"></i> Alapértelmezett cél valuta</label>
             <input type="text" id="cfg-currency-target" placeholder="HUF" maxlength="3">
+          </div>
+          <div class="form-group">
+            <label for="cfg-package-manager"><i class="fa-brands fa-linux"></i> Csomagkezelő (frissítések)</label>
+            <select id="cfg-package-manager" class="form-select">
+              <option value="">Automatikus felismerés</option>
+              <option value="pacman">Arch (pacman / checkupdates)</option>
+              <option value="apt">Debian / Ubuntu (apt)</option>
+              <option value="dnf">Fedora / RHEL (dnf)</option>
+              <option value="zypper">openSUSE (zypper)</option>
+              <option value="apk">Alpine (apk)</option>
+            </select>
           </div>
         </div>
 
