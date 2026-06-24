@@ -60,6 +60,7 @@
     cfgTerminalEnabled: $('#cfg-terminal-enabled'),
     cfgPomodoro: $('#cfg-pomodoro'),
     cfgCurrencyTarget: $('#cfg-currency-target'),
+    cfgPackageManager: $('#cfg-package-manager'),
     linksEditor: $('#links-editor'),
     bangsEditor: $('#bangs-editor'),
     feedsEditor: $('#feeds-editor'),
@@ -1348,15 +1349,21 @@
   }
 
   // ============================================
-  // ARCH UPDATES
+  // PACKAGE UPDATES (distro-aware: Arch / Debian / Fedora / …)
   // ============================================
   async function fetchUpdates() {
     try {
       const res = await fetch('/api/updates');
       const data = await res.json();
       dom.updatesCount.textContent = data.count;
-      if (data.count > 0) { dom.sysUpdates.classList.add('has-updates'); dom.sysUpdates.title = `${data.count} frissítés elérhető`; }
-      else { dom.sysUpdates.classList.remove('has-updates'); dom.sysUpdates.title = 'Arch naprakész'; }
+      const label = data.distro || 'Linux';
+      if (data.count > 0) {
+        dom.sysUpdates.classList.add('has-updates');
+        dom.sysUpdates.title = `${data.count} frissítés elérhető — ${label}`;
+      } else {
+        dom.sysUpdates.classList.remove('has-updates');
+        dom.sysUpdates.title = `${label} naprakész`;
+      }
     } catch { dom.updatesCount.textContent = '?'; }
   }
 
@@ -2013,6 +2020,7 @@
     dom.cfgTerminalEnabled.checked = editConfig.terminalEnabled !== false;
     dom.cfgPomodoro.value = editConfig.pomodoroMinutes || 25;
     dom.cfgCurrencyTarget.value = editConfig.currencyTarget || 'HUF';
+    if (dom.cfgPackageManager) dom.cfgPackageManager.value = editConfig.packageManager || '';
   }
 
   function readGeneralTab() {
@@ -2025,6 +2033,7 @@
     editConfig.terminalEnabled = dom.cfgTerminalEnabled.checked;
     editConfig.pomodoroMinutes = parseInt(dom.cfgPomodoro.value) || 25;
     editConfig.currencyTarget = dom.cfgCurrencyTarget.value.trim().toUpperCase() || 'HUF';
+    if (dom.cfgPackageManager) editConfig.packageManager = dom.cfgPackageManager.value;
   }
 
   function handleBgUpload(e) {
@@ -2156,7 +2165,7 @@
       const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editConfig) });
       if (!res.ok) throw new Error('Save failed');
       config = JSON.parse(JSON.stringify(editConfig));
-      renderLinks(); applyBackground(); updateSearchBadge(); ThemeManager.apply(); fetchWeather(); loadRSSFeeds(); renderAgenda(); initPomodoro();
+      renderLinks(); applyBackground(); updateSearchBadge(); ThemeManager.apply(); fetchWeather(); loadRSSFeeds(); renderAgenda(); initPomodoro(); fetchUpdates();
       WidgetManager.applyLayout();
       closeSettings(); toast('Beállítások mentve!', 'success');
     } catch { toast('Hiba a mentés során!', 'error'); }

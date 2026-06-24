@@ -168,6 +168,11 @@
       "visible": true
     },
     {
+      "id": "docker",
+      "size": "large",
+      "visible": true
+    },
+    {
       "id": "plugin-example-crypto",
       "size": "mini",
       "visible": true
@@ -185,11 +190,6 @@
     {
       "id": "weather",
       "size": "mini",
-      "visible": true
-    },
-    {
-      "id": "docker",
-      "size": "large",
       "visible": true
     }
   ]
