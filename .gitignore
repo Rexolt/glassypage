@@ -1,0 +1,45 @@
+# ============================================
+# Glassypage — .gitignore
+# ============================================
+
+# Dependencies (reproducible from package-lock.json)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# Environment / secrets (keep the example committed)
+.env
+.env.*
+!.env.example
+
+# Live config (seeded from config.example.json on first run)
+/config.json
+
+# Logs
+*.log
+logs/
+
+# Runtime / temp
+*.tmp
+*.pid
+*.seed
+.cache/
+scratchpad/
+
+# OS cruft
+.DS_Store
+.DS_Store?
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# User-installed plugins (the bundled example-crypto stays tracked)
+plugins/*/
+!plugins/example-crypto/

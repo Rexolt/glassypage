@@ -21,8 +21,9 @@ Glassypage is a high-performance, aesthetically pleasing dashboard designed to b
 - **Vim Keys**: Full keyboard-driven navigation with Vim-inspired keybindings for power users.
 
 ### 🛠️ Integrated Dashboard
-- **System Monitoring**: Real-time stats for CPU, RAM, Disk usage, and Hostname.
-- **Arch Linux Integration**: Live trackers for pending package updates (`checkupdates` support).
+- **System Monitoring**: Real-time stats for CPU, RAM, Disk usage, OS/kernel, and Hostname.
+- **Cross-Distro Update Tracker**: Live count of pending package updates with automatic distro detection — **Arch** (`checkupdates`), **Debian/Ubuntu** (`apt`), **Fedora/RHEL** (`dnf`), **openSUSE** (`zypper`) and **Alpine** (`apk`). The package manager can also be forced from **Settings → General**.
+- **Docker Widget**: List, monitor (live CPU/RAM stats), control (start/stop/restart) and tail logs of your containers right from the dashboard.
 - **Integrated Terminal**: Run whitelisted shell commands directly from your browser dashboard.
 - **Media Controls**: Seamless integration with local media players via MPRIS (`playerctl`).
 
@@ -49,31 +50,64 @@ Glassypage is a high-performance, aesthetically pleasing dashboard designed to b
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v16+)
-- [npm](https://www.npmjs.com/)
-- (Optional) `playerctl` and `checkupdates` for full system feature support on Linux.
+Pick whichever fits you — **Docker** (works identically on any host), a **native install** (Arch, Debian/Ubuntu, Fedora, openSUSE) via the installer, or a **manual** dev run.
 
-### Installation
+### 🐳 Option A — Docker (recommended, distro-agnostic)
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Rexolt/glassypage.git
-   cd glassypage
-   ```
+Requires Docker + the Compose plugin.
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+```bash
+git clone https://github.com/Rexolt/glassypage.git
+cd glassypage
+cp .env.example .env      # then edit PUID/PGID/TZ/DOCKER_GID
+make up                   # seeds .env + config.json, then builds & starts
+```
 
-3. **Start the server**
-   ```bash
-   npm run dev
-   ```
+Open `http://localhost:3000` (or your `PORT`). Handy targets: `make logs`, `make down`, `make update`, `make rebuild`.
 
-4. **Open in your browser**
-   Navigate to `http://localhost:3000`.
+> Prefer raw Compose? Seed the live config first (the bind mount needs a real file), then start:
+> ```bash
+> cp config.example.json config.json
+> docker compose up -d --build
+> ```
+
+**`.env` values** (find yours with the listed commands):
+
+| Variable | Purpose | How to find |
+| --- | --- | --- |
+| `PORT` | Host port for the dashboard | — |
+| `PUID` / `PGID` | Run as your user so `config.json`/`plugins/` stay writable | `id -u` / `id -g` |
+| `TZ` | Clock & uptime timezone | e.g. `Europe/Budapest` |
+| `DOCKER_GID` | Lets the **Docker widget** use the host socket | `getent group docker \| cut -d: -f3` |
+
+The image bundles `docker-cli`, and the Docker socket is mounted by default so the Docker widget can manage host containers. ⚠️ Socket access is effectively root on the host — remove that volume (or append `:ro` for read-only) in `docker-compose.yml` if you don't want it.
+
+> ℹ️ In Docker, the **update tracker** reflects the container's own packages (Alpine). For *host* package updates, use the native install below.
+
+### 🖥️ Option B — Native install (systemd service)
+
+Auto-detects your package manager (`apt`/`pacman`/`dnf`/`zypper`), installs deps, and sets up a user systemd service that survives reboots:
+
+```bash
+git clone https://github.com/Rexolt/glassypage.git
+cd glassypage
+./install.sh
+```
+
+Manage it with `systemctl --user status|stop|restart glassypage.service`.
+
+### ⚙️ Option C — Manual / development
+
+#### Prerequisites
+- [Node.js](https://nodejs.org/) **v18+** and [npm](https://www.npmjs.com/)
+- (Optional) `playerctl` (media) and your distro's update tool (`checkupdates`/`apt`/`dnf`/`zypper`) for full system features.
+
+```bash
+git clone https://github.com/Rexolt/glassypage.git
+cd glassypage
+npm install
+npm run dev          # serves on http://localhost:3000
+```
 
 ---
 
@@ -83,7 +117,10 @@ Glassypage is highly customizable without touching code. Click the **Gear Icon**
 - Change background wallpapers (URL or Upload).
 - Customize search engines and `!bangs`.
 - Manage widget layout and visibility.
+- Override the package manager used by the update tracker.
 - Export/Import your custom themes and settings.
+
+> Settings live in `config.json`, which is **git-ignored** and created automatically from `config.example.json` on first run (so your personal setup never gets committed). To change the shipped defaults, edit `config.example.json`.
 
 ---
 
