@@ -8,12 +8,25 @@ const RSSParser = require('rss-parser');
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const CONFIG_PATH = path.join(__dirname, 'config.json');
+const CONFIG_EXAMPLE_PATH = path.join(__dirname, 'config.example.json');
 const SCRATCHPAD_PATH = path.join(__dirname, 'scratchpad.txt');
 const PLUGINS_DIR = path.join(__dirname, 'plugins');
 const rssParser = new RSSParser();
 
 // Ensure plugins directory exists
 if (!fs.existsSync(PLUGINS_DIR)) fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+
+// Bootstrap a personal config.json from the shipped example on first run.
+// config.json is git-ignored (user/runtime data); config.example.json is the
+// tracked default that ships with the repo.
+if (!fs.existsSync(CONFIG_PATH) && fs.existsSync(CONFIG_EXAMPLE_PATH)) {
+  try {
+    fs.copyFileSync(CONFIG_EXAMPLE_PATH, CONFIG_PATH);
+    console.log('  ⚙️  Seeded config.json from config.example.json');
+  } catch (err) {
+    console.error('Failed to seed config.json:', err.message);
+  }
+}
 
 // In-memory clipboard for AirDrop
 let clipboardData = { text: '', timestamp: 0, id: 0 };

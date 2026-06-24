@@ -60,10 +60,16 @@ Requires Docker + the Compose plugin.
 git clone https://github.com/Rexolt/glassypage.git
 cd glassypage
 cp .env.example .env      # then edit PUID/PGID/TZ/DOCKER_GID
-make up                   # or: docker compose up -d --build
+make up                   # seeds .env + config.json, then builds & starts
 ```
 
 Open `http://localhost:3000` (or your `PORT`). Handy targets: `make logs`, `make down`, `make update`, `make rebuild`.
+
+> Prefer raw Compose? Seed the live config first (the bind mount needs a real file), then start:
+> ```bash
+> cp config.example.json config.json
+> docker compose up -d --build
+> ```
 
 **`.env` values** (find yours with the listed commands):
 
@@ -111,7 +117,10 @@ Glassypage is highly customizable without touching code. Click the **Gear Icon**
 - Change background wallpapers (URL or Upload).
 - Customize search engines and `!bangs`.
 - Manage widget layout and visibility.
+- Override the package manager used by the update tracker.
 - Export/Import your custom themes and settings.
+
+> Settings live in `config.json`, which is **git-ignored** and created automatically from `config.example.json` on first run (so your personal setup never gets committed). To change the shipped defaults, edit `config.example.json`.
 
 ---
 
